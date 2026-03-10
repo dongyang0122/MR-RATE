@@ -1,4 +1,4 @@
-# MR-RATE
+# MR-RATE: A Vision-Language Foundation Model and Dataset for Magnetic Resonance Imaging
 
 [![Tests](https://github.com/forithmus/MR-RATE/actions/workflows/tests.yml/badge.svg)](https://github.com/forithmus/MR-RATE/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/forithmus/MR-RATE/branch/main/graph/badge.svg)](https://codecov.io/gh/forithmus/MR-RATE)
