@@ -10,3 +10,30 @@ coverage.xml
 .pytest_cache/
 *.out
 wandb/
+
+# data-preprocessing: ignore data directory contents, keep placeholder files
+data-preprocessing/data/raw/*
+data-preprocessing/data/interim/*
+data-preprocessing/data/processed/*
+!data-preprocessing/data/raw/.gitkeep
+!data-preprocessing/data/interim/.gitkeep
+!data-preprocessing/data/processed/.gitkeep
+
+# data-preprocessing: ignore log files, keep placeholder
+data-preprocessing/logs/*
+!data-preprocessing/logs/.gitkeep
+
+# Medical imaging files
+*.nii
+*.nii.gz
+*.dcm
+
+# Log files
+*.log
+
+# Environment / secrets
+.env
+.env.*
+
+# macOS
+.DS_Store

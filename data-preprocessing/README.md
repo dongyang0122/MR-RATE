@@ -2,11 +2,59 @@
 
 This submodule contains the data preprocessing pipelines and scripts used for building the [MR-RATE dataset](https://huggingface.co/datasets/Forithmus/MR-RATE), a novel dataset of brain and spine MRI volumes paired with corresponding radiology text reports and metadata.
 
-To start using the dataset right away, refer to the [Dataset Guide](docs/dataset_guide.md) and [Downloading Dataset](#downloading-dataset).
+➡️ To start using the dataset right away, refer to the [Dataset Guide](docs/dataset_guide.md) and [Downloading Dataset](#downloading-dataset).
 
-## Overview
+## 🧠 Overview
 
 In MR-RATE, brain and spine MRI examinations are acquired from patients using MRI scanners and organised into multiple imaging sequence categories, including T1-weighted, T2-weighted, FLAIR, SWI, and MRA, constituting the series of a study. Then, each study is paired with associated metadata and a radiology report, which is produced by the radiologists during clinical interpretation. Together, these components constitute the MR-RATE dataset for multimodal brain and spine MRI research. Via preprocessing steps applied here, our goal is to convert raw, heterogeneous clinical data into a clean, anonymized, and spatially standardized collection that is ready for downstream machine learning and neuroscientific research.
+
+## 📁 Directory Structure
+
+```plaintext
+data-preprocessing/
+├── README.md
+├── pyproject.toml
+├── environment.yml
+├── data/
+│   ├── raw/                               # Raw PACS CSVs, NIfTI files, mapping Excels
+│   ├── interim/                           # Intermediate outputs from each step
+│   └── processed/                         # Final processed studies
+├── logs/                                  # Per-batch log files
+├── run/
+│   ├── run_mri_preprocessing.py           # Orchestrates steps 1–5
+│   ├── run_mri_upload.py                  # Orchestrates steps 5–6
+│   ├── utils.py                           # Shared runner utilities
+│   └── configs/
+│       └── mri_batch00.yaml               # Batch config template
+├── scripts/
+│   └── hf/
+│       ├── download.py                    # Download MR-RATE batches from Hugging Face
+│       └── merge_downloaded_repos.py      # Merge derivative repos into MR-RATE/ on study level
+├── src/
+│   └── mr_rate_preprocessing/
+│       ├── configs/
+│       │   ├── config_mri_preprocessing.py    # Pipeline constants and thresholds
+│       │   └── config_metadata_columns.json   # DICOM metadata column definitions
+│       ├── mri_preprocessing/
+│       │   ├── pacs_metadata_filtering.py     # Step 1: metadata filtering
+│       │   ├── series_classification.py       # Step 2: modality classification
+│       │   ├── modality_filtering.py          # Step 3: modality filtering
+│       │   ├── brain_segmentation_and_defacing.py  # Step 4: HD-BET + Quickshear
+│       │   ├── zip_and_upload.py              # Step 5: zip & upload to HF
+│       │   ├── prepare_metadata.py            # Step 6: metadata preparation & upload
+│       │   ├── hdbet.py                       # HD-BET brain segmentation wrapper
+│       │   ├── quickshear.py                  # Quickshear defacing wrapper
+│       │   ├── dcm2nii.py                     # Step 1: DICOM-to-NIfTI conversion
+│       │   └── utils.py                       # Shared logging and helper utilities
+│       ├── registration/
+│       │   ├── registration.py            # ANTs co-registration and atlas registration
+│       │   └── upload.py                  # Zip registration outputs and upload to HF
+│       └── reports_preprocessing/             # Report processing pipeline (coming soon)
+├── tests/                                 # Coming soon
+└── figures/                               # Figures for submodule
+```
+
+## 🛠️ Preprocessing Pipelines
 
 ### MRI & Metadata Preprocessing
 
@@ -52,13 +100,13 @@ After MRI & Metadata Preprocessing is run, processed and uploaded studies are do
 
 *(Coming soon)* Similar to registration, after MRI & Metadata Preprocessing is run, processed and uploaded studies are downloaded to a separate server where segmentation is performed independently. Voxel-wise anatomical segmentations are predicted for center modality volumes in native space using [NV-Segment-CTMR](https://github.com/NVIDIA-Medtech/NV-Segment-CTMR) model based on [VISTA3D](https://github.com/Project-MONAI/VISTA/tree/main/vista3d), supporting region-of-interest analysis and various downstream tasks.
 
-### Standalone scripts
+## 📥 Standalone Data Downloading Scripts
 
-- **[Download MR-RATE from Hugging Face](scripts/hf/download.py)** — Downloads data from any combination of the four MR-RATE HuggingFace repositories ([Forithmus/MR-RATE](https://huggingface.co/datasets/Forithmus/MR-RATE), [Forithmus/MR-RATE-coreg](https://huggingface.co/datasets/Forithmus/MR-RATE-coreg), [Forithmus/MR-RATE-atlas](https://huggingface.co/datasets/Forithmus/MR-RATE-atlas), [Forithmus/MR-RATE-vista-seg](https://huggingface.co/datasets/Forithmus/MR-RATE-vista-seg)) into per-repo output directories under a shared base, with optional concurrent on-the-fly unzipping and zip deletion. Supports resumable batch-level downloads via `snapshot_download` and the Xet high-performance transfer backend.
+- **[Download Repos](scripts/hf/download.py)** — Downloads data from any combination of the four MR-RATE HuggingFace repositories ([Forithmus/MR-RATE](https://huggingface.co/datasets/Forithmus/MR-RATE), [Forithmus/MR-RATE-coreg](https://huggingface.co/datasets/Forithmus/MR-RATE-coreg), [Forithmus/MR-RATE-atlas](https://huggingface.co/datasets/Forithmus/MR-RATE-atlas), [Forithmus/MR-RATE-vista-seg](https://huggingface.co/datasets/Forithmus/MR-RATE-vista-seg)) into per-repo output directories under a shared base, with optional concurrent on-the-fly unzipping and zip deletion. Supports resumable batch-level downloads via `snapshot_download` and the Xet high-performance transfer backend.
 
 - **[Merge Downloaded Repos](scripts/hf/merge_downloaded_repos.py)** — Merges extracted study folders from downloaded derivative repos (`MR-RATE-coreg/`, `MR-RATE-atlas/`, `MR-RATE-vista-seg/`) into the base `MR-RATE/` directory by moving each batch in-place. Mirrors the interface of `download.py`: same `--output-base`, same modality flags (`--coreg`, `--atlas`, `--vista-seg`), and same `--batches` selector. Filenames across repos are non-colliding by design, so subdirs that don't yet exist in the destination are renamed wholesale (instant move), while subdirs that already exist (e.g. `transform/`) are merged file-by-file.
 
-## Install
+## ⚙️ Installation
 
 1. **Clone the repository:**
 
@@ -83,7 +131,7 @@ After MRI & Metadata Preprocessing is run, processed and uploaded studies are do
    hf auth login # or set HF_TOKEN env variable
    ```
 
-## How to Use
+## 🧩 How to Use
 
 ### MRI & Metadata Preprocessing
 
@@ -391,49 +439,3 @@ Output structure after merging all derivatives for batch XX:
 ```
 
 See `python scripts/hf/merge_downloaded_repos.py --help` for the full list of options.
-
-## Submodule Organization
-
-```plaintext
-data-preprocessing/
-├── README.md
-├── pyproject.toml
-├── environment.yml
-├── data/
-│   ├── raw/                               # Raw PACS CSVs, NIfTI files, mapping Excels
-│   ├── interim/                           # Intermediate outputs from each step
-│   └── processed/                         # Final processed studies
-├── logs/                                  # Per-batch log files
-├── run/
-│   ├── run_mri_preprocessing.py           # Orchestrates steps 1–5
-│   ├── run_mri_upload.py                  # Orchestrates steps 5–6
-│   ├── utils.py                           # Shared runner utilities
-│   └── configs/
-│       └── mri_batch00.yaml               # Batch config template
-├── scripts/
-│   └── hf/
-│       ├── download.py                    # Download MR-RATE batches from Hugging Face
-│       └── merge_downloaded_repos.py      # Merge derivative repos into MR-RATE/ on study level
-├── src/
-│   └── mr_rate_preprocessing/
-│       ├── configs/
-│       │   ├── config_mri_preprocessing.py    # Pipeline constants and thresholds
-│       │   └── config_metadata_columns.json   # DICOM metadata column definitions
-│       ├── mri_preprocessing/
-│       │   ├── pacs_metadata_filtering.py     # Step 1: metadata filtering
-│       │   ├── series_classification.py       # Step 2: modality classification
-│       │   ├── modality_filtering.py          # Step 3: modality filtering
-│       │   ├── brain_segmentation_and_defacing.py  # Step 4: HD-BET + Quickshear
-│       │   ├── zip_and_upload.py              # Step 5: zip & upload to HF
-│       │   ├── prepare_metadata.py            # Step 6: metadata preparation & upload
-│       │   ├── hdbet.py                       # HD-BET brain segmentation wrapper
-│       │   ├── quickshear.py                  # Quickshear defacing wrapper
-│       │   ├── dcm2nii.py                     # Step 1: DICOM-to-NIfTI conversion
-│       │   └── utils.py                       # Shared logging and helper utilities
-│       ├── registration/
-│       │   ├── registration.py            # ANTs co-registration and atlas registration
-│       │   └── upload.py                  # Zip registration outputs and upload to HF
-│       └── reports_preprocessing/             # Report processing pipeline (coming soon)
-├── tests/                                 # Coming soon
-└── figures/                               # Figures for submodule
-```
