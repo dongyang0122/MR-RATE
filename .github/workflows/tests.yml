@@ -25,25 +25,26 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('contrastive-pretraining/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.python-version }}-
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e mr_rate/ -e vision_encoder/
+          pip install -r contrastive-pretraining/requirements.txt
+          pip install -e contrastive-pretraining/mr_rate/ -e contrastive-pretraining/vision_encoder/
 
       - name: Run tests with coverage
         run: |
           python -m pytest --cov-report=xml
+        working-directory: contrastive-pretraining
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
-          file: ./coverage.xml
+          file: contrastive-pretraining/coverage.xml
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
