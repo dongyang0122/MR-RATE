@@ -16,35 +16,35 @@ data-preprocessing/
 ├── pyproject.toml
 ├── environment.yml
 ├── data/
-│   ├── raw/                               # Raw PACS CSVs, NIfTI files, mapping Excels
+│   ├── raw/                               # Raw PACS CSVs, DICOMs, NIfTIs, mapping Excels
 │   ├── interim/                           # Intermediate outputs from each step
 │   └── processed/                         # Final processed studies
 ├── logs/                                  # Per-batch log files
 ├── run/
 │   ├── run_mri_preprocessing.py           # Orchestrates steps 1–5
-│   ├── run_mri_upload.py                  # Orchestrates steps 5–6
+│   ├── run_mri_upload.py                  # Orchestrates steps 6–7
 │   ├── utils.py                           # Shared runner utilities
 │   └── configs/
 │       └── mri_batch00.yaml               # Batch config template
 ├── scripts/
 │   └── hf/
 │       ├── download.py                    # Download MR-RATE batches from Hugging Face
-│       └── merge_downloaded_repos.py      # Merge derivative repos into MR-RATE/ on study level
+│       └── merge_downloaded_repos.py      # Merge derivative repos into MR-RATE repo on study level
 ├── src/
 │   └── mr_rate_preprocessing/
 │       ├── configs/
 │       │   ├── config_mri_preprocessing.py    # Pipeline constants and thresholds
 │       │   └── config_metadata_columns.json   # DICOM metadata column definitions
 │       ├── mri_preprocessing/
-│       │   ├── pacs_metadata_filtering.py     # Step 1: metadata filtering
-│       │   ├── series_classification.py       # Step 2: modality classification
-│       │   ├── modality_filtering.py          # Step 3: modality filtering
-│       │   ├── brain_segmentation_and_defacing.py  # Step 4: HD-BET + Quickshear
-│       │   ├── zip_and_upload.py              # Step 5: zip & upload to HF
-│       │   ├── prepare_metadata.py            # Step 6: metadata preparation & upload
+│       │   ├── dcm2nii.py                     # Step 1: DICOM-to-NIfTI conversion
+│       │   ├── pacs_metadata_filtering.py     # Step 2: metadata filtering
+│       │   ├── series_classification.py       # Step 3: series classification
+│       │   ├── modality_filtering.py          # Step 4: modality filtering
+│       │   ├── brain_segmentation_and_defacing.py  # Step 5: HD-BET + Quickshear
+│       │   ├── zip_and_upload.py              # Step 6: zip & upload MRI to HF
+│       │   ├── prepare_metadata.py            # Step 7: metadata preparation & upload to HF
 │       │   ├── hdbet.py                       # HD-BET brain segmentation wrapper
 │       │   ├── quickshear.py                  # Quickshear defacing wrapper
-│       │   ├── dcm2nii.py                     # Step 1: DICOM-to-NIfTI conversion
 │       │   └── utils.py                       # Shared logging and helper utilities
 │       ├── registration/
 │       │   ├── registration.py            # ANTs co-registration and atlas registration
