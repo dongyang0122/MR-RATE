@@ -7,7 +7,6 @@ Welcome to the official repository for MR-RATE, a pioneering vision-language mod
 - Paper: **coming soon**
 - Model Weights: **coming soon**
 - Dataset: **[MR-RATE on Hugging Face](https://huggingface.co/datasets/Forithmus/MR-RATE)**
-- **[Metadata Dashboard](https://mrrate.forithmus.com/)**
 
 ---
 

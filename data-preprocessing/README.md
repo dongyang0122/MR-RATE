@@ -100,7 +100,7 @@ After MRI & Metadata Preprocessing is run, processed and uploaded studies are do
 
 *(Coming soon)* Similar to registration, after MRI & Metadata Preprocessing is run, processed and uploaded studies are downloaded to a separate server where segmentation is performed independently. Voxel-wise anatomical segmentations are predicted for center modality volumes in native space using [NV-Segment-CTMR](https://github.com/NVIDIA-Medtech/NV-Segment-CTMR) model based on [VISTA3D](https://github.com/Project-MONAI/VISTA/tree/main/vista3d), supporting region-of-interest analysis and various downstream tasks.
 
-## 📥 Standalone Data Downloading Scripts
+## ⬇️ Standalone Data Downloading Scripts
 
 - **[Download Repos](scripts/hf/download.py)** — Downloads data from any combination of the four MR-RATE HuggingFace repositories ([Forithmus/MR-RATE](https://huggingface.co/datasets/Forithmus/MR-RATE), [Forithmus/MR-RATE-coreg](https://huggingface.co/datasets/Forithmus/MR-RATE-coreg), [Forithmus/MR-RATE-atlas](https://huggingface.co/datasets/Forithmus/MR-RATE-atlas), [Forithmus/MR-RATE-vista-seg](https://huggingface.co/datasets/Forithmus/MR-RATE-vista-seg)) into per-repo output directories under a shared base, with optional concurrent on-the-fly unzipping and zip deletion. Supports resumable batch-level downloads via `snapshot_download` and the Xet high-performance transfer backend.
 
