@@ -76,11 +76,14 @@ Raw DICOM exports from PACS are noisy, heterogeneous, and contain patient-identi
 
 4. **[Modality Filtering](src/mr_rate_preprocessing/mri_preprocessing/modality_filtering.py)** — Filters classified series against acceptance criteria (modality type, acquisition plane, image shape/FOV, patient age) defined in [mri preprocessing config](src/mr_rate_preprocessing/configs/config_mri_preprocessing.py). Reads NIfTI headers in parallel to measure shape and spacing, constructs standardized modality IDs (e.g. `t1w-raw-sag`), and designates one T1w series per study as the center modality to be used later in registration and segmentation.
 
-5. **[Brain Segmentation & Defacing](src/mr_rate_preprocessing/mri_preprocessing/brain_segmentation_and_defacing.py)** — Using an adapted and parallelized version of the [BrainLesion Suite preprocessing module](https://github.com/BrainLesion/preprocessing), a brain mask is predicted for each series with [HD-BET](https://github.com/MIC-DKFZ/HD-BET), and defacing is then applied with [Quickshear](https://github.com/nipy/quickshear) to remove identifiable facial features. Brain masks and defacing masks are saved alongside the defaced volumes.
+5. **[Brain Segmentation & Defacing](src/mr_rate_preprocessing/mri_preprocessing/brain_segmentation_and_defacing.py)** — Using an adapted and parallelized version of the [BrainLesion Suite Preprocessing Module (BrainLes-Preprocessing Toolkit)](https://github.com/BrainLesion/preprocessing), a binary brain mask is predicted for each series with [HD-BET](https://github.com/MIC-DKFZ/HD-BET), and defacing is then applied with [Quickshear](https://github.com/nipy/quickshear) to remove identifiable facial features. Brain masks and defacing masks are saved alongside the defaced volumes.
+> For details on adaptations to `BrainLes-Preprocessing`, see [Why is this specific MRI preprocessing?](docs/dataset_guide.md#why-is-this-specific-mri-preprocessing).
 
 6. **[Upload MRI to HF](src/mr_rate_preprocessing/mri_preprocessing/zip_and_upload.py)** — Validates that all expected modality files (image, brain mask, defacing mask) are present for each study, anonymizes study IDs to de-identified UIDs, zips each processed study folder, and uploads the zip files to the Hugging Face dataset repository in parallel. Supports the [Xet](https://huggingface.co/docs/hub/storage-backends) high-performance transfer backend.
 
 7. **[Upload metadata to HF](src/mr_rate_preprocessing/mri_preprocessing/prepare_metadata.py)** — Validates that all expected modality files (image, brain mask, defacing mask) are present for each study, merges patient IDs and anonymized study dates from mapping files, drops sensitive columns, and uploads a clean metadata CSV to Hugging Face.
+
+---
 
 ### Radiology Report Preprocessing
 
@@ -98,6 +101,8 @@ Raw Turkish radiology reports are converted to structured English through an ite
 
 5. **[Structure QC](src/mr_rate_preprocessing/reports_preprocessing/05_structure_qc/)** — LLM-based verification comparing structured output against the raw report, checking for missing content, hallucinations, and misplaced sections.
 
+---
+
 ### Registration
 
 Because different modalities within a study are acquired in different orientations and resolutions, they must be spatially aligned before any cross-modal analysis can be performed. Co-registration to a shared T1w reference and subsequent normalization to the MNI152 atlas puts all volumes into a common coordinate space, enabling direct voxel-wise comparisons across modalities and subjects, and allowing researchers to readily apply the registered data to their specific downstream tasks without additional alignment steps.
@@ -106,9 +111,12 @@ Because different modalities within a study are acquired in different orientatio
 
 After MRI & Metadata Preprocessing is run, processed and uploaded studies are downloaded to a separate server where registration is performed independently.
 
-1. **[Registration](src/mr_rate_preprocessing/registration/registration.py)** —  In a similar approach to [BrainLesion Suite preprocessing module](https://github.com/BrainLesion/preprocessing), within each study, moving modalities are co-registered to the T1-weighted center modality using [ANTs](https://github.com/antsx/ants). The center modality is then registered to the [MNI152 (ICBM 2009c Nonlinear Symmetric)](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/) atlas, and all co-registered modalities are transformed to atlas space.
+1. **[Registration](src/mr_rate_preprocessing/registration/registration.py)** —  In a similar approach to [BrainLesion Suite Preprocessing Module (BrainLes-Preprocessing Toolkit)](https://github.com/BrainLesion/preprocessing), within each study, moving modalities are co-registered to the T1-weighted center modality using [ANTs](https://github.com/antsx/ants). The center modality is then registered to the [MNI152 (ICBM 2009c Nonlinear Symmetric)](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/) atlas, and all co-registered modalities are transformed to atlas space.
+> For details on adaptations to `BrainLes-Preprocessing`, see [Why is this specific MRI preprocessing?](docs/dataset_guide.md#why-is-this-specific-mri-preprocessing).
 
 2. **[Upload to HF](src/mr_rate_preprocessing/registration/upload.py)** — Zips each registered study folder, and uploads the zip files to the Hugging Face dataset repository in parallel.
+
+---
 
 ### Multi-label Brain Segmentation
 
@@ -144,7 +152,8 @@ After MRI & Metadata Preprocessing is run, processed and uploaded studies are do
    Required for uploading to or downloading from the Hugging Face dataset repositories.
 
    ```bash
-   hf auth login # or set HF_TOKEN env variable
+   hf auth login
+   # or: export HF_TOKEN=<your_token>
    ```
 
 ## 🧩 How to Use
@@ -225,6 +234,8 @@ All MRI pipeline steps are driven by a single YAML config file. Batch configs ar
 
 Intermediate outputs are written to the paths defined in your config file, following the `data/interim/` → `data/processed/` convention.
 
+---
+
 ### Radiology Report Preprocessing
 
 Each pipeline step is a standalone parallel script designed for SLURM execution. Scripts are located in `src/mr_rate_preprocessing/reports_preprocessing/` and documented in its own [`README.md`](src/mr_rate_preprocessing/reports_preprocessing/README.md).
@@ -256,6 +267,8 @@ srun python src/mr_rate_preprocessing/reports_preprocessing/05_structure_qc/qc_l
 python src/mr_rate_preprocessing/reports_preprocessing/utils/merge_shards.py \
     --shard_dir <shard_dir> --output <merged.csv>
 ```
+
+---
 
 ### Registration
 
@@ -308,17 +321,27 @@ No runner scripts or config for registration pipeline as there are two blocks to
    │   └── mri/
    │       └── batchXX/
    │           └── <study_uid>/
-   │               ├── coreg_img/       # Center modality copy + moving modalities registered to center
-   │               ├── coreg_seg/       # Center modality brain-mask and defacing-mask copy
-   │               └── transform/       # M_coreg_<moving_modality_id>.mat — moving→center transforms
+   │               ├── coreg_img/
+   │               │   ├── <study_uid>_<center_series_id>.nii.gz              # Center modality (unchanged copy from native) (uint16 or float32)
+   │               │   └── <study_uid>_coreg_<moving_series_id>.nii.gz        # Moving modalities warped to center space (float32)
+   │               ├── coreg_seg/
+   │               │   ├── <study_uid>_<center_series_id>_brain-mask.nii.gz   # Center modality brain mask (unchanged copy from native) (uint8)
+   │               │   └── <study_uid>_<center_series_id>_defacing-mask.nii.gz # Center modality defacing mask (unchanged copy from native) (uint8)
+   │               └── transform/
+   │                   └── M_coreg_<moving_series_id>.mat                     # Moving→center ANTs transform (one per moving modality)
    │
    └── MR-RATE-atlas_batchXX/
        └── mri/
            └── batchXX/
                └── <study_uid>/
-                   ├── atlas_img/       # All modalities transformed to MNI152 atlas space
-                   ├── atlas_seg/       # Center modality brain-mask and defacing-mask in atlas space
-                   └── transform/       # M_atlas_<center_modality_id>.mat — center→atlas transform
+                   ├── atlas_img/
+                   │   ├── <study_uid>_atlas_<center_series_id>.nii.gz        # Center modality in atlas space (float32)
+                   │   └── <study_uid>_atlas_<moving_series_id>.nii.gz        # Moving modalities in atlas space (float32)
+                   ├── atlas_seg/
+                   │   ├── <study_uid>_atlas_<center_series_id>_brain-mask.nii.gz    # Brain mask in atlas space (uint8)
+                   │   └── <study_uid>_atlas_<center_series_id>_defacing-mask.nii.gz # Defacing mask in atlas space (uint8)
+                   └── transform/
+                       └── M_atlas_<center_series_id>.mat                     # Center→atlas ANTs transform
    ```
 
 3. **Zip and upload to Hugging Face:**
@@ -370,17 +393,26 @@ No runner scripts or config for registration pipeline as there are two blocks to
            └── <study_uid>_atlas.zip       # Uploaded by atlas upload
    ```
 
+---
+
 ### Multi-label Brain Segmentation
 
 *(Coming soon)*
 
+---
+
 ### Downloading Dataset
 
-For detailed overview of the MR-RATE dataset, refer to the [HF Repo](https://huggingface.co/datasets/Forithmus/MR-RATE) and [Dataset Guide](docs/dataset_guide.md).
+For detailed overview, refer to the [MR-RATE dataset](https://huggingface.co/datasets/Forithmus/MR-RATE) and [Dataset Guide](docs/dataset_guide.md).
 
-1. **Download Repos**
+1. **Follow [⚙️ Installation](#%EF%B8%8F-installation) steps 1 & 3 (if you haven't done so already)**
 
-`scripts/hf/download.py` is a standalone script that downloads any combination of data from the four MR-RATE repositories. Each repo is written to its own subdirectory under `--output-base` (default: `./data`).
+All four repositories are gated. Make sure you have access.
+
+
+2. **Download Repos**
+
+[`scripts/hf/download.py`](scripts/hf/download.py) is a standalone script that downloads any combination of data from the four MR-RATE repositories. Each repo is written to its own subdirectory under `--output-base` (default: `./data`).
 
 | Flag | Default | Repository | Zip suffix | Output directory |
 |------|---------|-----------|------------|-----------------|
@@ -389,9 +421,11 @@ For detailed overview of the MR-RATE dataset, refer to the [HF Repo](https://hug
 | `--atlas` | off | `Forithmus/MR-RATE-atlas` | `_atlas` | `./data/MR-RATE-atlas/` |
 | `--vista-seg` | off | `Forithmus/MR-RATE-vista-seg` | `_vista-seg` | `./data/MR-RATE-vista-seg/` |
 
-Pass `--no-mri` to disable all MRI downloads (metadata/reports only) . Metadata and reports are always fetched from `Forithmus/MR-RATE` into `./data/MR-RATE/`. Pass `--no-metadata` and/or `--no-reports` to disable metadata and/or reports downloads.
+Pass `--no-mri` to disable all MRI downloads (metadata/reports only) . Metadata and reports are always fetched from `Forithmus/MR-RATE` into `./data/MR-RATE/`. Pass `--no-metadata` and/or `--no-reports` to disable metadata and/or reports downloads. Pass `--xet-high-perf` to enable Hugging Face's high-performance Xet transfer backend, which uses all available CPUs and maximum bandwidth. If you haven't deleted zip-files, downloads are resumable: `snapshot_download` skips zip files already present locally.
 
 ```bash
+# Some examples:
+
 # Download native MRI for all batches, unzip and free disk as you go
 python scripts/hf/download.py \
     --batches all --unzip --delete-zips --no-metadata --no-reports --xet-high-perf
@@ -418,10 +452,10 @@ Output structure after downloading all data for batch XX, unzipping and deleting
 │   │   └── batchXX/
 │   │       └── <study_uid>/
 │   │           ├── img/
-│   │           │   └── <study_uid>_<series_id>.nii.gz
+│   │           │   └── <study_uid>_<series_id>.nii.gz                              # Defaced native-space image (uint16 or float32)
 │   │           └── seg/
-│   │               ├── <study_uid>_<series_id>_brain-mask.nii.gz
-│   │               └── <study_uid>_<series_id>_defacing-mask.nii.gz
+│   │               ├── <study_uid>_<series_id>_brain-mask.nii.gz                   # Brain mask (uint8)
+│   │               └── <study_uid>_<series_id>_defacing-mask.nii.gz                # Defacing mask (uint8)
 │   ├── metadata/
 │   │   └── batchXX_metadata.csv
 │   └── reports/
@@ -431,25 +465,36 @@ Output structure after downloading all data for batch XX, unzipping and deleting
 │       └── batchXX/
 │           └── <study_uid>/
 │               ├── coreg_img/
+│               │   ├── <study_uid>_<center_series_id>.nii.gz                        # Center modality (unchanged copy from native) (uint16 or float32)
+│               │   └── <study_uid>_coreg_<moving_series_id>.nii.gz                  # Moving modalities warped to center space (float32)
 │               ├── coreg_seg/
+│               │   ├── <study_uid>_<center_series_id>_brain-mask.nii.gz             # Center modality brain mask (unchanged copy from native) (uint8)
+│               │   └── <study_uid>_<center_series_id>_defacing-mask.nii.gz          # Center modality defacing mask (unchanged copy from native) (uint8)
 │               └── transform/
+│                   └── M_coreg_<moving_series_id>.mat                               # Moving→center ANTs transform (one per moving modality)
 ├── MR-RATE-atlas/
 │   └── mri/
 │       └── batchXX/
 │           └── <study_uid>/
 │               ├── atlas_img/
+│               │   ├── <study_uid>_atlas_<center_series_id>.nii.gz                  # Center modality in atlas space (float32)
+│               │   └── <study_uid>_atlas_<moving_series_id>.nii.gz                  # Moving modalities in atlas space (float32)
 │               ├── atlas_seg/
+│               │   ├── <study_uid>_atlas_<center_series_id>_brain-mask.nii.gz       # Brain mask in atlas space (uint8)
+│               │   └── <study_uid>_atlas_<center_series_id>_defacing-mask.nii.gz    # Defacing mask in atlas space (uint8)
 │               └── transform/
+│                   └── M_atlas_<center_series_id>.mat                               # Center→atlas ANTs transform
 └── MR-RATE-vista-seg/
     └── mri/
         └── batchXX/
             └── <study_uid>/
                 └── seg/
+                    └── <study_uid>_<center_series_id>_vista-seg.nii.gz              # Multi-label brain segmentation map
 ```
 
-2. **(optional) Merge Downloaded Repos**
+3. **(optional) Merge Downloaded Repos**
 
-After downloading and unzipping, `scripts/hf/merge_downloaded_repos.py` can consolidate derivative repo contents into `MR-RATE/` on a per-study basis. Each selected derivative repo must already exist under `--output-base`. At least one of `--coreg`, `--atlas`, or `--vista-seg` must be passed.
+After downloading and unzipping, [`scripts/hf/merge_downloaded_repos.py`](scripts/hf/merge_downloaded_repos.py) can consolidate derivative repo contents into `MR-RATE/` on a per-study basis. Each selected derivative repo must already exist under `--output-base`. At least one of `--coreg`, `--atlas`, or `--vista-seg` must be passed.
 
 ```bash
 # Merge coreg and atlas into native for all batches
@@ -483,3 +528,31 @@ Output structure after merging all derivatives for batch XX:
 ```
 
 See `python scripts/hf/merge_downloaded_repos.py --help` for the full list of options.
+
+4. **Quick reference for common operations:**
+
+```python
+import pandas as pd
+
+# Load metadata for a batch
+meta = pd.read_csv("data/MR-RATE/metadata/batch00_metadata.csv", dtype={"patient_uid": str}, low_memory=False)
+
+# Load reports
+reports = pd.read_csv("data/MR-RATE/reports/batch00_reports.csv", low_memory=False)
+
+# Load patient-level splits
+splits = pd.read_csv("data/MR-RATE/splits.csv", usecols=["study_uid", "split"], low_memory=False)
+
+# Apply patient-level splits
+meta_with_split = meta.merge(splits, on="study_uid")
+train_meta = meta_with_split[meta_with_split["split"] == "train"]
+
+# Find all series for a study in train split
+study_series = train_meta[train_meta["study_uid"] == "<study_uid>"]
+
+# Find the report for a study
+study_report = reports[reports["study_uid"] == "<study_uid>"]
+
+# Find the center modality series for a study (used in coreg/atlas/segmentation)
+center = meta[(meta["study_uid"] == "<study_uid>") & (meta["is_center_modality"] == True)]
+```
