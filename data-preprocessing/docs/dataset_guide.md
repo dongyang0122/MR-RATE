@@ -12,17 +12,18 @@ A practical reference for understanding the structure and contents of the [MR-RA
   - [What is a patient, study, and series?](#what-is-a-patient-study-and-series)
   - [What is a series ID?](#what-is-a-series-id)
   - [What modalities and series are included?](#what-modalities-and-series-are-included)
-  - [Can T1w series be contrast-enhanced?](#can-t1w-series-be-contrast-enhanced)
+  - [Which series are contrast-enhanced?](#which-series-are-contrast-enhanced)
+  - [Why are there registration and segmentation derivatives along with native-space data?](#why-are-there-registration-and-segmentation-derivatives-along-with-native-space-data)
   - [Why are files zipped?](#why-are-files-zipped)
   - [Why are there four repositories?](#why-are-there-four-repositories)
+  - [How are studies connected across repositories?](#how-are-studies-connected-across-repositories)
   - [What are batches?](#what-are-batches)
   - [How does metadata connect everything?](#how-does-metadata-connect-everything)
-  - [How are studies connected across repositories?](#how-are-studies-connected-across-repositories)
 - [2. Repository Overview](#2-repository-overview)
 - [3. Forithmus/MR-RATE — Native Space](#3-forithmusmr-rate--native-space)
 - [4. Forithmus/MR-RATE-coreg — Co-registered Space](#4-forithmusmr-rate-coreg--co-registered-space)
 - [5. Forithmus/MR-RATE-atlas — Atlas Space](#5-forithmusmr-rate-atlas--atlas-space)
-- [6. Forithmus/MR-RATE-vista-seg — Segmentations](#6-forithmusmr-rate-vista-seg--segmentations)
+- [6. Forithmus/MR-RATE-vista-seg — Brain Segmentations](#6-forithmusmr-rate-vista-seg--brain-segmentations)
 - [7. Downloading Dataset](#7-downloading-dataset)
 - [8. Connecting the Pieces](#8-connecting-the-pieces)
 
@@ -32,21 +33,21 @@ A practical reference for understanding the structure and contents of the [MR-RA
 
 ### What is the MR-RATE dataset?
 
-MR-RATE is a large-scale multimodal dataset comprising **705,254** non-contrast and contrast-enhanced brain and spine MRI volumes from **83,425** unique patients across **98,334** studies, spanning multiple sequence types (T1, T2, FLAIR, SWI, MRA) and paired with radiology reports and metadata — together constituting a unified resource for multimodal brain and spine MRI research. 
+MR-RATE is a large-scale multimodal dataset comprising **705,254** non-contrast and contrast-enhanced brain and spine MRI volumes from **83,425** unique patients across **98,334** studies, spanning multiple sequence types (T1, T2, FLAIR, SWI, MRA) and paired with radiology reports and metadata, together constituting a unified resource for multimodal brain and spine MRI research. 
 
-Raw DICOM files are converted to anonymized, defaced NIfTI volumes, spatially standardized via co-registration and atlas normalization, and enriched with multi-label brain segmentations, while reports and metadata are anonymized, translated, and restructured — all through open-source workflows, with the overarching goal of transforming raw, heterogeneous clinical data into a clean, anonymized, and spatially standardized collection ready for downstream machine learning and neuroscientific research.
+Raw DICOM files are converted to anonymized, defaced NIfTI volumes, spatially standardized via co-registration and atlas normalization, and enriched with multi-label brain segmentations. Reports are anonymized, translated, and restructured. All processing is carried out through open-source workflows, with the goal of transforming raw, heterogeneous clinical data into a clean, anonymized, and spatially standardized collection ready for downstream machine learning and neuroscientific research.
 
 ---
 
 ### Why is this specific MRI preprocessing?
 
-The reference for our preprocessing pipeline is the [BrainLesion Suite Preprocessing Module (BrainLes-Preprocessing Toolkit)](https://github.com/BrainLesion/preprocessing) which, among many other options, provide [ANTs](https://github.com/antsx/ants) for registration, [HD-BET](https://github.com/MIC-DKFZ/HD-BET) for binary brain mask segmentation and [Quickshear](https://github.com/nipy/quickshear) for defacing. We adapted `BrainLes-Preprocessing` substantially for our large-scale data preprocessing:
+The reference for our preprocessing pipeline is the [BrainLesion Suite Preprocessing Module (BrainLes-Preprocessing Toolkit)](https://github.com/BrainLesion/preprocessing) which, among many other options, provides [ANTs](https://github.com/antsx/ants) for registration, [HD-BET](https://github.com/MIC-DKFZ/HD-BET) for binary brain mask segmentation and [Quickshear](https://github.com/nipy/quickshear) for defacing. We adapted `BrainLes-Preprocessing` substantially for our large-scale data preprocessing:
 
-- **Improved CPU & GPU Utilization** — `BrainLes-Preprocessing` is designed to run all preprocessing steps (registration, brain segmentation, and defacing) for a given study sequentially in one pass. In this pipeline, GPU-based steps (`HD-BET` brain segmentation) and CPU-based steps (`ANTs` registration) alternate, leaving one resource idle while the other runs. Given the GPU-hours required for our dataset, we split the pipeline into two independent blocks — 1)registration and 2)brain segmentation & defacing  — so that each block can be optimized and scaled separately.
+- **Improved CPU & GPU Utilization** — `BrainLes-Preprocessing` is designed to run all preprocessing steps (registration, brain segmentation, and defacing) for a given study sequentially in one pass. In this pipeline, GPU-based steps (`HD-BET` brain segmentation) and CPU-based steps (`ANTs` registration) alternate, leaving one resource idle while the other runs. Given the GPU-hours required for our dataset, we split the pipeline into two independent blocks, 1)registration and 2)brain segmentation & defacing, so that each block can be optimized and scaled separately.
 
 - **Parallelism & Inference Optimization** — Within each block, we parallelized study processing to utilize all available CPU cores and GPUs respectively. Furthermore, we optimized `HD-BET` inference for mixed-precision and batch inference to leverage modern GPU resources.
 
-- **Block Re-rdering** — In a typical setup as in `BrainLes-Preprocessing`, registration comes first. Then other steps are applied to the center modality, and produced brain and defacing masks are mapped back to the moving modalities. We inverted this order for a practical reason: at the time of the project, our data storage cluster had high GPU availability but relatively low CPU availability. Running brain segmentation and defacing on all series indepently allowed us to complete the anonymization step quickly, after which the defaced data was transferred to a separate compute cluster where the registration block was run. As a byproduct of this re-ordering, brain masks are not bounded by the registration performance and are of comprable or higher quality.
+- **Block Re-ordering** — In a typical setup as in `BrainLes-Preprocessing`, registration comes first. Then other steps are applied to the center modality, and produced brain and defacing masks are mapped back to the moving modalities. We inverted this order for a practical reason: at the time of the project, our data storage cluster had high GPU availability but relatively low CPU availability. Running brain segmentation and defacing on all series independently allowed us to complete the anonymization step quickly, after which the defaced data was transferred to a separate compute cluster where the registration block was run. As a byproduct of this re-ordering, brain masks are not bounded by the registration performance and are of comparable or higher quality.
 
 ---
 
@@ -118,15 +119,15 @@ While we currently only use native-space data for our model training, to support
 
 ### Why are files zipped?
 
-Hugging Face enforces a maximum number of files (~100,000) per dataset repository. Since each unzipped study contains multiple NIfTI volumes, uploading individual files would quickly exceed this limit. To stay within it, all imaging files for a study are compressed into a single `.zip` file before upload. This means a study's imaging data is always downloaded as a unit — individual files inside a zip cannot be selectively fetched. Since reports and metadata are stored as CSV files, they are not affected by the zipping.
+Hugging Face enforces a maximum number of files (~100,000) per dataset repository. Since each unzipped study contains multiple NIfTI volumes, uploading individual files would quickly exceed this limit. To stay within it, all imaging files for a study are compressed into a single `.zip` file before upload. This means a study's imaging data is always downloaded as a unit and individual files inside a zip cannot be selectively fetched. Since reports and metadata are stored as CSV files, they are not affected by the zipping.
 
-Hugging Face offers alternative approaches to tackle file limits, such as 'Nifti feature in Datasets library' or 'WebDataset'. However, due to various reasons we have preferred zip archives for the current version.
+Hugging Face offers alternative approaches to tackle file limits, such as 'Nifti feature in Datasets library' or 'WebDataset'. However, for various reasons we have preferred zip archives for the current version.
 
 ---
 
 ### Why are there four repositories?
 
-Different parts of the dataset serve different use cases and have very different storage requirements. Since zipping disables include/exclude pattern filtering for downloads, study folders for each part are zipped independently — allowing users to download only what their workflow needs. As the total number of zip files still exceeds Hugging Face's per-repository file limit, they are distributed across four repositories.
+Different parts of the dataset serve different use cases and have very different storage requirements. Since zipping disables include/exclude pattern filtering for downloads, study folders for each part are zipped independently to allow users to download only what their workflow needs. As the total number of zip files still exceeds Hugging Face's per-repository file limit, they are distributed across four repositories. See [Repository Overview](#2-repository-overview).
 
 ---
 
@@ -138,7 +139,7 @@ Each zip file is named after its study: `<study_uid>.zip`, `<study_uid>_coreg.zi
 
 ### What are batches?
 
-The dataset was processed and uploaded in 28 batches named `batch00` through `batch27`. Batches serve two purposes: they are the unit of processing in the pipeline, and each batch maps ~~3500 studies to one folder (`mri/batchXX/`) to comply with Hugging Face's maximum number of files (~~10,000) per folder limit. All repositories share the same batch structure, so `batch05` in `MR-RATE-coreg` contains exactly the same studies as `batch05` in `MR-RATE`.
+The dataset was processed and uploaded in 28 batches named `batch00` through `batch27`. Batches serve two purposes: they are the unit of processing in the pipeline, and each batch maps ~3,500 studies to one folder (`mri/batchXX/`) to comply with Hugging Face's maximum number of files (~10,000) per folder limit. All repositories share the same batch structure, e.g., `batch05` in `MR-RATE-coreg` contains exactly the same studies as `batch05` in `MR-RATE`.
 
 ---
 
@@ -155,7 +156,7 @@ series_id    →  maps a metadata row to its NIfTI filename
 
 **Metadata** (`batchXX_metadata.csv`) is series-level: one row per series, with `patient_uid`, `study_uid`, `series_id` columns.  
 **Reports** (`batchXX_reports.csv`) are study-level: one row per study, joined to metadata via `study_uid`.  
-**Splits** (`splits.csv`) are created on patient-level but are also on study-level as they are both UID: one row per study since a patient can have multiple studies, with `batch_id`, `patient_uid`, `study_uid`, `split` columns (`batch_id` is for the first appearance of a patient), joined to metadata via `study_uid`.
+**Splits** (`splits.csv`) are assigned at the patient level (all studies of a patient share the same split) but stored at the study level: one row per study, with `batch_id`, `patient_uid`, `study_uid`, `split` columns (`batch_id` is for the first appearance of a patient), joined to metadata via `study_uid`.
 
 ---
 
@@ -233,7 +234,7 @@ The metadata CSV contains curated DICOM fields for each accepted series. Key col
 | `is_localizer`            | Whether the series was classified as a localizer scan. Currently always `False` in MR-RATE.                                                                                                                                      |
 | `is_subtraction`          | Whether the series was classified as a subtraction image. Currently always `False` in MR-RATE.                                                                                                                                   |
 | `is_center_modality`      | Whether this series was selected as the T1w center modality for registration. Exactly one `True` per study.                                                                                                                      |
-| `anon_study_date`         | Anonymized study date. A patient-specific random day offset is applied consistently across all studies for the same patient, preserving relative temporal ordering between a patient's studies while anontmizing absolute dates. |
+| `anon_study_date`         | Anonymized study date. A patient-specific random day offset is applied consistently across all studies for the same patient, preserving relative temporal ordering between a patient's studies while anonymizing absolute dates. |
 | `classification_rule`     | Which rule tier assigned the modality label (e.g., diffusion tags, vendor sequence name, keyword match).                                                                                                                         |
 | `sequence_family`         | Broad sequence family assigned during classification.                                                                                                                                                                            |
 | `array_shape`             | Voxel dimensions of the NIfTI volume (e.g., `[256, 256, 192]`). Orientation might differ across series.                                                                                                                          |
@@ -274,7 +275,7 @@ Each radiology report was originally written in Turkish by a radiologist. It was
 | `clinical_information` | Clinical indication or patient history section. Empty if not present in the original report. |
 | `technique`            | Imaging technique and sequences used.                                                        |
 | `findings`             | All observations, written as flowing paragraph sentences.                                    |
-| `impression`           | Radiologist's conclusions, formatted as em-dash (—) bullet points.                           |
+| `impression`           | Radiologist's conclusions.                                                                   |
 
 
 Anonymization tokens — `[patient_1]`, `[date_1]`, `[radiologist_1]`, `[hospital_1]`, etc. — are present in the text wherever PHI was replaced during anonymization.
@@ -284,8 +285,8 @@ See [Radiology Report Preprocessing](../README.md#radiology-report-preprocessing
 ### Data Splits
 
 **File:** `splits.csv`  
-**Granularity:** One row per patient  
-**Join column:** `patient_uid`
+**Granularity:** One row per study  
+**Join column:** `study_uid`
 
 Patient-level splits for reproducible benchmarking. All studies and series of a given patient fall in the same split.
 
@@ -302,7 +303,7 @@ Patient-level splits for reproducible benchmarking. All studies and series of a 
 
 ## 4. Forithmus/MR-RATE-coreg — Co-registered Space
 
-Within each study, all brain MRI volumes are spatially aligned to a shared reference frame. A single T1w raw series is designated the **center modality** (marked `is_center_modality=True` in the metadata). All other series in the study — the **moving modalities** — are registered to the center using [ANTs](https://github.com/antsx/ants), bringing every brain MRI sequence of a study into a common anatomical space for within-study cross-modal analysis. For registration, the following parameters are used: `Rigid` transform, `linear` interpolation and `Mattes` (Mattes mutual information) metric are used.
+Within each study, all brain MRI volumes are spatially aligned to a shared reference frame. A single T1w raw series is designated the **center modality** (marked `is_center_modality=True` in the metadata). All other series in the study, the **moving modalities**, are registered to the center using [ANTs](https://github.com/antsx/ants), bringing every brain MRI sequence of a study into a common anatomical space for within-study cross-modal analysis. The following registration parameters are used: `Rigid` transform, `linear` interpolation, and `Mattes` (Mattes mutual information) metric.
 
 ### Repository layout on Hugging Face
 
@@ -329,7 +330,7 @@ Forithmus/MR-RATE-coreg
     └── M_coreg_<moving_series_id>.mat                 # Moving→center ANTs transform (one per moving modality)
 ```
 
-The center modality appears in `coreg_img/` as an unchanged copy of its native-space image from `MR-RATE`. Brain and defacing masks in `coreg_seg/` are the center modality's masks from native-space — since all volumes are now in the center's space, these masks apply uniformly to every series in the study. One `.mat` registration transform file is produced per moving modality.
+The center modality appears in `coreg_img/` as an unchanged copy of its native-space image from `MR-RATE`. Brain and defacing masks in `coreg_seg/` are the center modality's masks from native-space. Since all volumes are now in the center's space, these masks apply uniformly to every series in the study. One `.mat` registration transform file is produced per moving modality.
 
 See [Registration](../README.md#registration) for the full implementation details.
 
@@ -337,7 +338,7 @@ See [Registration](../README.md#registration) for the full implementation detail
 
 ## 5. Forithmus/MR-RATE-atlas — Atlas Space
 
-The center modality from each study is registered to the [MNI152 ICBM 2009c Nonlinear Symmetric](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/) atlas using [ANTs](https://github.com/antsx/ants). All co-registered moving modalities are then propagated to atlas space using the composed transform, putting every volume in the study into a standardized coordinate system for group-level analyses and cross-patient comparisons. For registration, the following parameters are used: `Rigid` transform, `linear` interpolation and `Mattes` (Mattes mutual information) metric are used.
+The center modality from each study is registered to the [MNI152 ICBM 2009c Nonlinear Symmetric](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/) atlas using [ANTs](https://github.com/antsx/ants). All co-registered moving modalities are then propagated to atlas space using the composed transform, putting every volume in the study into a standardized coordinate system for group-level analyses and cross-patient comparisons. The following registration parameters are used: `Rigid` transform, `linear` interpolation, and `Mattes` (Mattes mutual information) metric.
 
 ### Repository layout on Hugging Face
 
@@ -370,7 +371,7 @@ See [Registration](../README.md#registration) for the full implementation detail
 
 ---
 
-## 6. Forithmus/MR-RATE-vista-seg — Segmentations
+## 6. Forithmus/MR-RATE-vista-seg — Brain Segmentations
 
 Voxel-wise multi-label brain segmentations are predicted for the center modality of each study in native space using [NV-Segment-CTMR](https://github.com/NVIDIA-Medtech/NV-Segment-CTMR) based on [VISTA3D](https://github.com/Project-MONAI/VISTA/tree/main/vista3d). Segmentations support region-of-interest analysis and other downstream tasks requiring anatomical parcellations.
 
@@ -413,7 +414,7 @@ The diagram below shows how identifiers and files relate across all dataset comp
 
 ```mermaid
 flowchart TD
-    PatientRow["study_uid\n(splits.csv)"]
+    SplitsRow["study_uid\n(splits.csv)"]
     MetaRow["metadata row\n(batchXX_metadata.csv)\none row per series"]
     ReportRow["report row\n(batchXX_reports.csv)\none row per study"]
     NativeZip["study_uid.zip\n(MR-RATE/mri/)"]
@@ -421,7 +422,7 @@ flowchart TD
     AtlasZip["study_uid_atlas.zip\n(MR-RATE-atlas/mri/)"]
     SegZip["study_uid_vista-seg.zip\n(MR-RATE-vista-seg/mri/)"]
 
-    PatientRow -->|"study_uid"| MetaRow
+    SplitsRow -->|"study_uid"| MetaRow
     MetaRow -->|"study_uid"| ReportRow
     MetaRow -->|"study_uid"| NativeZip
     MetaRow -->|"study_uid"| CoregZip
