@@ -68,5 +68,3 @@ This project is conducted by Forithmus and the University of Zurich, in collabor
 We are grateful to NVIDIA for their support, which made this work possible. We also sincerely thank Istanbul Medipol University for their support and for providing the data used in this project. High-performance computing resources were provided by NVIDIA and the University of Zurich ScienceCluster. We would also like to thank the following individuals from NVIDIA for their contributions to the development of MR-RATE: Marc Edgar, Daguang Xu, Dong Yang, Yucheng Tang, Can Zhao, Andriy Myronenko, and Pengfei Guo. 
 
 This collaboration represents an important step toward the long-term mission to make high-quality medical intelligence accessible worldwide.
-
-<img width="19511" height="3759" alt="logo" src="https://github.com/user-attachments/assets/dccbf4ed-09a9-43e8-ae22-9b862c6cbf52" />
